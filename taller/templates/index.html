@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión - Taller de Motos</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 { color: #333; font-size: 28px; margin-bottom: 10px; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .stat-number { font-size: 36px; font-weight: bold; color: #667eea; }
+        .stat-label { color: #666; font-size: 14px; margin-top: 5px; }
+        .search-bar {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .search-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a67d8; }
+        .btn-success { background: #48bb78; color: white; }
+        .btn-success:hover { background: #38a169; }
+        .btn-danger { background: #e53e3e; color: white; }
+        .btn-danger:hover { background: #c53030; }
+        .btn-warning { background: #ed8936; color: white; }
+        .btn-warning:hover { background: #dd6b20; }
+        .completado-icono {
+            color: #48bb78;
+            font-size: 18px;
+            font-weight: bold;
+            margin-left: 8px;
+            display: inline-block;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .modal-content h2 { margin-bottom: 20px; color: #333; }
+        .modal-content h3 { margin-bottom: 15px; color: #667eea; font-size: 18px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .form-group input[readonly] {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            overflow-x: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #667eea; color: white; padding: 15px; text-align: left; }
+        td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; }
+        tr:hover { background: #f7fafc; }
+        .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏍️ Sistema de Gestión - Taller de Motos</h1>
+            <p>Control y seguimiento de alistamientos</p>
+        </div>
+        
+        <div class="stats" id="stats">
+            <div class="stat-card"><div class="stat-number" id="totalRegistros">-</div><div class="stat-label">Total de Servicios</div></div>
+            <div class="stat-card"><div class="stat-number" id="totalSeders">-</div><div class="stat-label">Sedes Atendidas</div></div>
+            <div class="stat-card"><div class="stat-number" id="totalTecnicos">-</div><div class="stat-label">Técnicos Activos</div></div>
+        </div>
+        
+        <div class="search-bar">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Buscar por chasis, sede, asesor o técnico...">
+            <button class="btn btn-primary" onclick="buscarRegistros()">Buscar</button>
+            <button class="btn btn-success" onclick="mostrarModalAgregar()">+ Nuevo Servicio</button>
+            <button class="btn btn-primary" onclick="cargarRegistros()">🔄 Actualizar</button>
+            <button class="btn btn-primary" onclick="exportarCSV()">📥 Exportar CSV</button>
+        </div>
+        
+        <div class="table-container">
+            <table id="tablaRegistros">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Chasis</th>
+                        <th>Sede</th>
+                        <th>Asesor</th>
+                        <th>Modelo</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaBody">
+                    <tr><td colspan="7" class="loading">Cargando datos...<\/td><\/tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Modal Agregar Servicio -->
+    <div id="modalAgregar" class="modal">
+        <div class="modal-content">
+            <h2>➕ Agregar Nuevo Servicio</h2>
+            <form id="formAgregar">
+                <div class="form-group"><label>Fecha:</label><input type="date" id="fecha_registro"></div>
+                <div class="form-group"><label>Hora:</label><input type="time" id="hora_registro"></div>
+                <div class="form-group"><label>Chasis:</label><input type="text" id="chasis" required></div>
+                <div class="form-group"><label>Sede:</label><input type="text" id="sede" required></div>
+                <div class="form-group"><label>Asesor:</label><input type="text" id="asesor"></div>
+                <div class="form-group"><label>Modelo:</label><input type="text" id="modelo"></div>
+                <div style="display:flex;gap:10px;justify-content:flex-end">
+                    <button type="button" class="btn" onclick="cerrarModalAgregar()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Realizar Solicitud -->
+    <div id="modalSolicitud" class="modal">
+        <div class="modal-content">
+            <h2>📝 Realizar Solicitud de Servicio</h2>
+            <form id="formSolicitud">
+                <input type="hidden" id="solicitud_id">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Chasis:</label>
+                        <input type="text" id="solicitud_chasis" readonly style="background:#f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Sede:</label>
+                        <input type="text" id="solicitud_sede" readonly style="background:#f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Asesor:</label>
+                        <input type="text" id="solicitud_asesor" readonly style="background:#f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Modelo:</label>
+                        <input type="text" id="solicitud_modelo" readonly style="background:#f0f0f0;">
+                    </div>
+                </div>
+                
+                <hr style="margin: 15px 0;">
+                <h3>📋 Completar información del servicio</h3>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>👨‍🔧 Técnico:</label>
+                        <input type="text" id="tecnico_servicio" placeholder="Nombre del técnico">
+                    </div>
+                    <div class="form-group">
+                        <label>Cupón:</label>
+                        <input type="text" id="cupon" placeholder="Número de cupón">
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad Gasolina:</label>
+                        <input type="number" step="0.1" id="cantidad_gasolina" placeholder="Litros">
+                    </div>
+                    <div class="form-group">
+                        <label>TICK:</label>
+                        <input type="number" id="tick" placeholder="Número de tick">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Alistamiento:</label>
+                        <input type="date" id="fecha_alistamiento">
+                    </div>
+                    <div class="form-group">
+                        <label>Hora Alistamiento:</label>
+                        <input type="time" id="hora_alistamiento">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descripción:</label>
+                    <textarea id="descripcion" rows="3" placeholder="Descripción del trabajo realizado..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Insumos/Repuestos:</label>
+                    <textarea id="insumos" rows="2" placeholder="Ej: Aceite 20W50, Filtro, Bujía..."></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="cerrarModalSolicitud()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">✅ Guardar Solicitud</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => { cargarRegistros(); cargarEstadisticas(); });
+        
+        async function cargarRegistros() {
+            try {
+                const res = await fetch('/api/registros');
+                const data = await res.json();
+                console.log("Datos recibidos:", data);
+                const tbody = document.getElementById('tablaBody');
+                if (!data.length) { 
+                    tbody.innerHTML = '<tr><td colspan="7" class="loading">📭 No hay registros<\/td><\/tr>'; 
+                    return; 
+                }
+                tbody.innerHTML = data.map(r => {
+                    // Verificar si la solicitud está COMPLETADA (tiene técnico, cupón, etc)
+                    const solicitudCompletada = r.tecnico && r.tecnico.trim() !== '' && 
+                                                r.cupon && r.cupon.trim() !== '';
+                    const iconoCompletado = solicitudCompletada ? '<span class="completado-icono" title="Solicitud completada">✅</span>' : '';
+                    const botonTexto = solicitudCompletada ? '📝 Editar Solicitud' : '📝 Realizar Solicitud';
+                    const botonColor = solicitudCompletada ? 'btn-success' : 'btn-warning';
+                    
+                    return `
+                        <tr>
+                            <td>${r.id}踹
+                            <td>${r.chasis || '-'}踹
+                            <td>${r.sede || '-'}踹
+                            <td>${r.asesor || '-'}踹
+                            <td>${r.modelo || '-'}踹
+                            <td>${r.fecha_registro || '-'}踹
+                            <td class="action-buttons">
+                                <button class="btn ${botonColor}" onclick="realizarSolicitud(${r.id})">${botonTexto}</button>
+                                <button class="btn btn-danger" onclick="eliminarRegistro(${r.id})">🗑️ Eliminar</button>
+                                ${iconoCompletado}
+                            踹
+                        </tr>
+                    `;
+                }).join('');
+            } catch(e) { 
+                console.error("Error:", e);
+                document.getElementById('tablaBody').innerHTML = '<tr><td colspan="7" class="loading">❌ Error al cargar<\/td><\/tr>'; 
+            }
+        }
+        
+        async function cargarEstadisticas() {
+            try {
+                const res = await fetch('/api/estadisticas');
+                const s = await res.json();
+                document.getElementById('totalRegistros').textContent = s.total || 0;
+                document.getElementById('totalSeders').textContent = s.sedes?.length || 0;
+                document.getElementById('totalTecnicos').textContent = s.tecnicos?.length || 0;
+            } catch(e) {}
+        }
+        
+        async function buscarRegistros() {
+            const term = document.getElementById('searchInput').value;
+            if (!term.trim()) { cargarRegistros(); return; }
+            const res = await fetch(`/api/buscar?q=${encodeURIComponent(term)}`);
+            const data = await res.json();
+            const tbody = document.getElementById('tablaBody');
+            tbody.innerHTML = data.map(r => {
+                const solicitudCompletada = r.tecnico && r.tecnico.trim() !== '' && 
+                                            r.cupon && r.cupon.trim() !== '';
+                const iconoCompletado = solicitudCompletada ? '<span class="completado-icono" title="Solicitud completada">✅</span>' : '';
+                const botonTexto = solicitudCompletada ? '📝 Editar Solicitud' : '📝 Realizar Solicitud';
+                const botonColor = solicitudCompletada ? 'btn-success' : 'btn-warning';
+                
+                return `
+                    <tr>
+                        <td>${r.id}踹
+                        <td>${r.chasis || '-'}踹
+                        <td>${r.sede || '-'}踹
+                        <td>${r.asesor || '-'}踹
+                        <td>${r.modelo || '-'}踹
+                        <td>${r.fecha_registro || '-'}踹
+                        <td class="action-buttons">
+                            <button class="btn ${botonColor}" onclick="realizarSolicitud(${r.id})">${botonTexto}</button>
+                            <button class="btn btn-danger" onclick="eliminarRegistro(${r.id})">🗑️ Eliminar</button>
+                            ${iconoCompletado}
+                        踹
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        async function eliminarRegistro(id) {
+            if(confirm('¿Eliminar este registro?')){
+                const res = await fetch(`/api/eliminar/${id}`,{method:'DELETE'});
+                const r = await res.json();
+                if(r.success){ alert(r.mensaje); cargarRegistros(); cargarEstadisticas(); }
+            }
+        }
+        
+        function mostrarModalAgregar() { 
+            document.getElementById('modalAgregar').style.display='flex'; 
+            document.getElementById('formAgregar').reset(); 
+        }
+        
+        function cerrarModalAgregar() { 
+            document.getElementById('modalAgregar').style.display='none'; 
+        }
+        
+        function exportarCSV() {
+            window.location.href = '/api/exportar_csv';
+        }
+        
+        async function realizarSolicitud(id) {
+            console.log("🔍 Función llamada con ID:", id);
+            try {
+                const res = await fetch(`/api/registro/${id}`);
+                console.log("📡 Respuesta recibida:", res.status);
+                const data = await res.json();
+                console.log("📦 Datos:", data);
+                
+                if (data.error) {
+                    alert("Error: " + data.error);
+                    return;
+                }
+                
+                document.getElementById('solicitud_id').value = data.id;
+                document.getElementById('solicitud_chasis').value = data.chasis || '';
+                document.getElementById('solicitud_sede').value = data.sede || '';
+                document.getElementById('solicitud_asesor').value = data.asesor || '';
+                document.getElementById('solicitud_modelo').value = data.modelo || '';
+                document.getElementById('tecnico_servicio').value = data.tecnico || '';
+                document.getElementById('cupon').value = data.cupon || '';
+                document.getElementById('cantidad_gasolina').value = data.cantidad_gasolina || '';
+                document.getElementById('tick').value = data.tick || '';
+                document.getElementById('fecha_alistamiento').value = data.fecha_alistamiento || '';
+                document.getElementById('hora_alistamiento').value = data.hora_alistamiento || '';
+                document.getElementById('descripcion').value = data.descripcion || '';
+                document.getElementById('insumos').value = data.insumos || '';
+                
+                document.getElementById('modalSolicitud').style.display = 'flex';
+                console.log("✅ Modal abierto");
+            } catch(e) {
+                console.error("❌ Error:", e);
+                alert('Error: ' + e.message);
+            }
+        }
+        
+        function cerrarModalSolicitud() {
+            document.getElementById('modalSolicitud').style.display = 'none';
+            document.getElementById('formSolicitud').reset();
+        }
+        
+        // FORMULARIO AGREGAR
+        document.getElementById('formAgregar').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nuevo = {
+                fecha_registro: document.getElementById('fecha_registro').value,
+                hora_registro: document.getElementById('hora_registro').value,
+                chasis: document.getElementById('chasis').value,
+                sede: document.getElementById('sede').value,
+                asesor: document.getElementById('asesor').value,
+                modelo: document.getElementById('modelo').value
+            };
+            
+            const res = await fetch('/api/agregar', { 
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify(nuevo) 
+            });
+            const r = await res.json();
+            if(r.success){ 
+                alert('✅ '+r.mensaje); 
+                cerrarModalAgregar(); 
+                cargarRegistros(); 
+                cargarEstadisticas(); 
+            } else { 
+                alert('❌ Error: '+r.error); 
+            }
+        });
+        
+        // FORMULARIO SOLICITUD
+        document.getElementById('formSolicitud').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('solicitud_id').value;
+            
+            const datos = {
+                tecnico: document.getElementById('tecnico_servicio').value,
+                cupon: document.getElementById('cupon').value,
+                cantidad_gasolina: document.getElementById('cantidad_gasolina').value,
+                tick: document.getElementById('tick').value,
+                fecha_alistamiento: document.getElementById('fecha_alistamiento').value,
+                hora_alistamiento: document.getElementById('hora_alistamiento').value,
+                descripcion: document.getElementById('descripcion').value,
+                insumos: document.getElementById('insumos').value
+            };
+            
+            const res = await fetch(`/api/actualizar/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(datos)
+            });
+            const r = await res.json();
+            if(r.success) {
+                alert('✅ Solicitud completada');
+                cerrarModalSolicitud();
+                cargarRegistros();
+                cargarEstadisticas();
+            } else {
+                alert('❌ Error: ' + r.error);
+            }
+        });
+        
+        document.getElementById('searchInput').addEventListener('keypress', (e) => { 
+            if(e.key==='Enter') buscarRegistros(); 
+        });
+    </script>
+</body>
+</html>
